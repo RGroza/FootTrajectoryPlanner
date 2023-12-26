@@ -50,8 +50,14 @@ class gui:
 		self.variables = {}
 
 		# plot button
-		button_update = Button(window,text="Plot All",command = self.plotter)
-		button_update.grid(column = 0, row =1, sticky='nsew')
+		plot_button_update = Button(window,text="Plot All",command = self.plotter)
+		plot_button_update.grid(column = 0, row =1, sticky='nsew')
+		# save button
+		save_button_update = Button(window,text="Save Trajectory",command = self.save_trajectory)
+		save_button_update.grid(column = 0, row =2, sticky='nsew')
+		# reset button
+		reset_button_update = Button(window,text="Reset",command = self.reset_sliders)
+		reset_button_update.grid(column = 0, row =3, sticky='nsew')
 
 		self.row = 0
 
@@ -67,7 +73,7 @@ class gui:
 
 		self.labels["vx"] = Label(self.lf_inputs, text="Vx (mm/s)", anchor="w", justify=LEFT)
 		self.labels["vx"].grid(column = 0, row = self.row, sticky='w')
-		self.scales["vx"] = Scale(self.lf_inputs, from_=0, to=3000, tickinterval=2000, orient=HORIZONTAL)
+		self.scales["vx"] = Scale(self.lf_inputs, from_=0, to=500, tickinterval=100, orient=HORIZONTAL)
 		self.scales["vx"].grid(column = 1, row = self.row, sticky='w')
 		self.scales["vx"].bind("<ButtonRelease>", self.scale_handler)
 		self.scales["vx"].set(1000)
@@ -75,7 +81,7 @@ class gui:
 
 		self.labels["Tstride"] = Label(self.lf_inputs, text="Tstride (ms)", anchor="w", justify=LEFT)
 		self.labels["Tstride"].grid(column = 0, row = self.row, sticky='w')
-		self.scales["Tstride"] = Scale(self.lf_inputs, from_=350, to=800, tickinterval=500, orient=HORIZONTAL)
+		self.scales["Tstride"] = Scale(self.lf_inputs, from_=500, to=5000, tickinterval=1000, orient=HORIZONTAL)
 		self.scales["Tstride"].grid(column = 1, row = self.row, sticky='w')
 		self.scales["Tstride"].bind("<ButtonRelease>", self.scale_handler)
 		self.scales["Tstride"].set(400)
@@ -114,8 +120,8 @@ class gui:
 		self.row += 1
 
 		# radio button
-		leg_name = ["5-bar 3DOF Leg","Serial 3DOF Leg"]
-		leg_value = ["5-bar","serial"]
+		leg_name = ["Serial 3DOF Leg", "5-bar 3DOF Leg"]
+		leg_value = ["serial", "5-bar"]
 		self.variables["Leg"] = StringVar()
 		self.variables["Leg"].set(leg_value[0])
 		for i in range(2):
@@ -177,6 +183,16 @@ class gui:
 		self.viewports['Joint_Acceleration'] = Canvas(self.lf_graphs, bg="#FFFFFF") #, width=viewport_max_x, height=viewport_size_y_pos, bg="#FFFFFF")
 		self.viewports["Joint_Acceleration"].grid(column = 1, row = self.row, sticky='we')
 		self.row += 1
+
+
+	def reset_sliders(self):
+		self.scales["vx"].set(1000)
+		self.scales["Tstride"].set(2000)
+		self.scales["Overlay"].set(0)
+		self.scales["Hswing"].set(30)
+		self.scales["Hstance"].set(5)
+		self.scales["Z0"].set(130)
+		self.update()
 
 
 	def scale_handler(self, event):
@@ -315,7 +331,7 @@ class gui:
 			]
 
 		# build data
-		self.step_s = 0.0005 # s 
+		self.step_s = 0.01 # s 
 
 		# .. for stride XZ position
 		self.x_dataset = []
@@ -822,6 +838,7 @@ class gui:
 			return view_size*margin/2 + view_size*(1.0-margin)*(1.0-(a-a_min)/(a_max-a_min))
 
 	def plotter(self):
+		self.save_trajectory()
 
 		plt.plot(self.x_dataset,self.z_dataset)
 		plt.axis('equal')
@@ -877,6 +894,28 @@ class gui:
 		plt.ylabel('Joint Acceleration (degrees/s²)')
 		plt.show()
 
+
+	def save_trajectory(self):
+		self.v_front_hips_dataset.append(self.v_front_hips_dataset[0])
+		self.v_rear_hips_dataset.append(self.v_rear_hips_dataset[0])
+
+		X = np.array([self.front_hips_dataset, self.rear_hips_dataset,
+					  self.v_front_hips_dataset, self.v_rear_hips_dataset])
+		X = np.pi / 180 * np.transpose(np.flip(X, axis=1))
+		X += np.repeat(np.array([[-np.pi/2, -np.pi, 0, 0]]), X.shape[0], axis=0)
+
+		print(f"X: {X.shape}")
+		X = np.vstack([np.zeros((1, X.shape[0])), X[:, 0], X[:, 1],
+               		   np.zeros((1, X.shape[0])), X[:, 2], X[:, 3]]).transpose()
+		print("Adding HAA values")
+		print(f"X: {X.shape}")
+
+		with open('initial_trajectory.npy', 'wb') as f:
+			np.save(f, X)
+
+		print("Trajectory saved!")
+		print(f"dt: {(self.T_swing_s + self.T_stance_s) / X.shape[0]}")
+		self.window.destroy()
 
 
 def main():

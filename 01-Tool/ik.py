@@ -128,7 +128,7 @@ def ik_serial_leg(foot_position): # input 3x1 vector  (x,y,z,1) in METERS, where
 	log("A3: "+str(round(math.degrees(A3),0))+"deg")
 	# compute angle and elongation of the leg, in the xz' (coxa plane)
 	L = math.sqrt(foot_position[0,0]**2 + HFsq)
-	Alpha = math.atan2(HF,foot_position[0,0]);
+	Alpha = math.atan2(HF,foot_position[0,0])
 	log("L: "+str(round(L,3)))
 	log("Alpha: "+str(round(math.degrees(Alpha),0)))
 	# bound max elongation
